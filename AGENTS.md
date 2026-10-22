@@ -14,5 +14,7 @@ project document needed for the task.
   the real queue and history.
 - Use Context7 for current library, framework, SDK, API, CLI, or cloud-service
   documentation; do not use it for project logic or general programming.
+- Delegate all test runs to a Haiku-model subagent (`model: haiku`, Claude Haiku 4.5, `claude-haiku-4-5`); see
+  [development rules](docs/development-rules.md#testing-and-checks).
 - Keep documentation current, never rewrite old changelog entries, run
   `make check`, and commit only when asked.
