@@ -32,6 +32,7 @@ The rules for changing `framecontrol`, for people and AI agents alike.
 
 - No source files in the project root. All code is the `framecontrol`
   package under `src/` (uv src layout), with tests in `tests/` mirroring it.
+- Ask the owner before changing the directory layout.
 - Subpackages: `core/` (paths, errors, arguments, configuration, the runner),
   `jobs/` (job definition and parsing, the executor, records, inputs, media),
   `state/` (the SQLite store), `services/` (the use cases front ends share),
@@ -67,11 +68,11 @@ The rules for changing `framecontrol`, for people and AI agents alike.
   affected by concurrent worker load. Set `TEST_WORKERS` to select a safe
   worker count for CI. `make test-profile` reports the 20 slowest tests; set
   `TEST_PROFILE_LIMIT` to change that number.
-- `make proto` is silent on success and shows build errors.
 - AI agents delegate every test run (`make check`, `make test`,
   `make test-tui`, and single-test runs) to a cheap Haiku-based subagent
   (`model: haiku`, Claude Haiku 4.5, `claude-haiku-4-5`). The subagent runs the command and reports the result and
   any failure output; the delegating agent does the diagnosis and fixes.
+- `make proto` is silent on success and shows build errors.
 - `make format` applies Ruff's formatter.
 
 ## Documentation
