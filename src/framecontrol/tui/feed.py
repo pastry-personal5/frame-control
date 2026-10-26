@@ -39,6 +39,9 @@ if TYPE_CHECKING:
 # the pane always seeds before applying anything live (attaching and a mid-stream Reset then run the same code).
 FORCE_RESET_ID = 1
 RECONNECT_SECONDS = 2.0
+# A ready gRPC iterator does not itself give Textual's input pump a turn. Keep bursts bounded, while batching
+# enough output events that Textual can coalesce their screen refreshes.
+EVENTS_PER_INPUT_YIELD = 32
 _FINISHED_STATE_VALUES = frozenset(str(state) for state in FINISHED_STATES)
 
 
@@ -102,9 +105,17 @@ class QueueFeed:
     async def _watch(self, stub: MonitorStub, metadata: tuple[tuple[str, str], ...], http: httpx.AsyncClient) -> None:
         open_id = FORCE_RESET_ID if self._reopen_fresh else self._last_event_id
         call = stub.WatchEvents(monitor_pb2.WatchEventsRequest(last_event_id=open_id, include_output=wants_output(self._app.verbose_level)), metadata=metadata)
+        events_since_yield = 0
         try:
             async for event in call:
                 await self._handle(event, http)
+                events_since_yield += 1
+                if events_since_yield == EVENTS_PER_INPUT_YIELD:
+                    # A replay, or a chatty child, can keep the gRPC iterator continuously ready. _handle is
+                    # effectively synchronous for ordinary job events, so without this bounded suspension the
+                    # worker can monopolize Textual's loop and starve keyboard and mouse input indefinitely.
+                    events_since_yield = 0
+                    await asyncio.sleep(0)
         finally:
             call.cancel()
 

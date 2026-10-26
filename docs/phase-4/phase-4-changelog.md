@@ -3,6 +3,10 @@
 Owner decisions, design decisions, and notable changes for
 [Phase 4](README.md). Newest first.
 
+## 2026-10-27
+
+- **Change**: The TUI's live gRPC feed now yields to the shared asyncio loop in bounded event batches, so a buffered replay or a continuously chatty generator cannot starve Textual's keyboard and mouse input processing while burst redraws remain coalesced.
+
 ## 2026-10-20
 
 - **Change** [M18]: Milestone 18 is done with no code or behavior change. Milestone 17 completed every review slice with no behavior-change candidate, so there was nothing to accept, reject, move, implement, migrate, or validate separately; M18's planned no-candidate closeout applies.

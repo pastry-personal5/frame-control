@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import os
 import signal
+from contextlib import suppress
 from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ from framecontrol.jobs.events import MediaChecked, StageFinished, StageStarted, 
 from framecontrol.services.history import HistoryReader
 from framecontrol.state.executions import ExecutionRow, NewExecution, NewRun
 from framecontrol.state.store import Store
+from framecontrol.tui.feed import EVENTS_PER_INPUT_YIELD, QueueFeed
 from framecontrol.tui.live_run import MAX_OUTPUT_LINES
 from framecontrol.tui.panes.execution import ExecutionDetailPane
 from framecontrol.tui.panes.history import ExecutionHistoryList
@@ -148,6 +150,34 @@ class LiveRunTests(FeedTestCase):
         self.assertEqual(len(model), MAX_OUTPUT_LINES)
         self.assertEqual(pane[-1], f"line {MAX_OUTPUT_LINES + 149} [x]")
         self.assertNotIn("line 0 [x]", pane)
+
+    async def test_a_buffered_event_burst_yields_to_the_ui_loop_before_it_is_drained(self) -> None:
+        app = self.make_app()
+        feed = QueueFeed(app)
+        feed._reopen_fresh = False
+        feed._last_event_id = self.server.next_id - 1
+        total = EVENTS_PER_INPUT_YIELD * 2
+        for number in range(total):
+            self.server.send(run_output(f"line {number}"))
+
+        handled: list[int] = []
+
+        async def handle(event: Any, http: Any) -> None:
+            handled.append(event.id)
+
+        observed: list[int] = []
+        loop = asyncio.get_running_loop()
+        with mock.patch.object(feed, "_handle", side_effect=handle):
+            watching = asyncio.create_task(feed._watch(self.server.stub_factory("unused"), (), mock.Mock()))
+            loop.call_soon(lambda: observed.append(len(handled)))
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            watching.cancel()
+            with suppress(asyncio.CancelledError):
+                await watching
+
+        self.assertEqual(len(observed), 1)
+        self.assertEqual(observed[0], EVENTS_PER_INPUT_YIELD)
 
     async def test_stop_cancels_the_followed_entry_once(self) -> None:
         app = self.make_app()
